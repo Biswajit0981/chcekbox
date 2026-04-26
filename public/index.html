@@ -276,11 +276,11 @@
 
           input.checked = data.checked;
           card.classList.toggle("checked", data.checked);
-          renderToast(data.checked ? 'success' : 'error', `clicked on ${data.id + 1}`, 15000);
+          renderToast(data.checked ? 'success' : 'error', `clicked on ${data.id + 1}`, 600);
         });
 
         socket.on("user:join", (data) => {
-          renderToast("success", `joined 😉 ${data}`, 3000)
+          renderToast("success", `joined 😉 ${data}`, 1000)
         });
 
         socket.on('live', (data) => {

@@ -11,7 +11,7 @@ async function main() {
     id,
     checked: false,
   }));
-
+  let liveUser = 0;
   // ! create socket server
   const io = new Server();
   // attach io with server.
@@ -21,7 +21,10 @@ async function main() {
   // listen from client
 
   io.on("connection", (socket) => {
+    liveUser++;
     socket.broadcast.emit('user:join', socket.id);
+    socket.broadcast.emit('live',  liveUser);
+
     socket.on("toogle", (data) => {
       state[data.id] = {
         id: data.id,
@@ -29,6 +32,12 @@ async function main() {
       };
       socket.broadcast.emit("onToggle", state[data.id]);
     });
+
+    socket.on('disconnect', () => {
+        liveUser--;
+        socket.broadcast.emit('live',  liveUser);
+    });
+    
   });
 
   app.use(express.static(path.resolve("./public")));

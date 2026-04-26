@@ -163,11 +163,15 @@
           width: 0%;
         }
       }
+     span {
+       font-size: 15px;
+       color: #00ffcc;
+     }
     </style>
   </head>
 
   <body>
-    <h1>Checkbox Playground</h1>
+    <h1 >Checkbox Playground <span class="live"></span></h1>
 
     <div class="container">
       <div class="grid" id="grid"></div>
@@ -272,22 +276,37 @@
 
           input.checked = data.checked;
           card.classList.toggle("checked", data.checked);
+          renderToast(data.checked ? 'success' : 'error', `clicked on ${data.id + 1}`, 15000);
         });
 
         socket.on("user:join", (data) => {
-          const container = document.getElementById("toastContainer");
+          renderToast("success", `joined 😉 ${data}`, 3000)
+        });
+
+        socket.on('live', (data) => {
+           renderUser(data)
+        });
+
+      });
+
+      function  renderUser (data) {
+         const span = document.querySelector(".live")
+          span.innerText = `Live user: ${data}`
+      }
+
+      function renderToast (type, innerText, ms) {
+        const container = document.getElementById("toastContainer");
 
           const toast = document.createElement("div");
           toast.className = `toast success`;
-          toast.innerText = `joined 😉 ${data}`;
+          toast.innerText = innerText;
 
           container.appendChild(toast);
 
           setTimeout(() => {
             toast.remove();
-          }, 3000);
-        });
-      });
+          }, ms);
+      }
     </script>
   </body>
 </html>

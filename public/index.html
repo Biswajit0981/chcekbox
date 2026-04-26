@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkbox Grid UI</title>
+
+    <style>
+      body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #1e1e2f, #2c2c54);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100vh;
+      }
+
+      h1 {
+        margin: 20px 0;
+        font-weight: 600;
+        letter-spacing: 1px;
+      }
+
+      .container {
+        width: 90%;
+        max-width: 1200px;
+        height: 80vh;
+        overflow-y: auto;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 12px;
+      }
+
+      .checkbox-card {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: 0.25s ease;
+        position: relative;
+      }
+
+      .checkbox-card:hover {
+        transform: translateY(-3px);
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      input[type="checkbox"] {
+        display: none;
+      }
+
+      .label {
+        display: block;
+        font-size: 12px;
+      }
+
+      .checkbox-card.checked {
+        background: linear-gradient(135deg, #00c9ff, #92fe9d);
+        color: #000;
+        font-weight: 600;
+      }
+
+      .checkbox-card.checked::after {
+        content: "✔";
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        font-size: 12px;
+      }
+
+      /* scrollbar */
+      .container::-webkit-scrollbar {
+        width: 8px;
+      }
+      .container::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 10px;
+      }
+
+      .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 9999;
+      }
+
+      .toast {
+        min-width: 220px;
+        max-width: 300px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        color: white;
+        font-size: 14px;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        animation:
+          slideIn 0.3s ease,
+          fadeOut 0.3s ease 2.7s forwards;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* success / error variants */
+      .toast.success {
+        border-left: 4px solid #00ffcc;
+      }
+
+      .toast.error {
+        border-left: 4px solid #ff4d4d;
+      }
+
+      /* progress bar */
+      .toast::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        width: 100%;
+        background: linear-gradient(90deg, #00c9ff, #92fe9d);
+        animation: progress 3s linear forwards;
+      }
+
+      /* animations */
+      @keyframes slideIn {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+      }
+
+      @keyframes progress {
+        from {
+          width: 100%;
+        }
+        to {
+          width: 0%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Checkbox Playground</h1>
+
+    <div class="container">
+      <div class="grid" id="grid"></div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const grid = document.getElementById("grid");
+
+      const bucket = new Map();
+
+      let page = 1;
+      const limit = 300;
+      let isLoading = false;
+      let hasMore = true;
+
+     
+      function render(state) {
+        const fragment = document.createDocumentFragment();
+
+        state.forEach(({ id, checked }) => {
+          const card = document.createElement("div");
+          card.className = "checkbox-card";
+
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.id = id;
+          input.checked = checked;
+
+          const label = document.createElement("label");
+          label.className = "label";
+          label.htmlFor = input.id;
+          label.innerText = id + 1;
+
+          card.appendChild(input);
+          card.appendChild(label);
+
+          card.classList.toggle("checked", checked);
+
+          card.addEventListener("click", () => {
+            const newState = !input.checked;
+
+            input.checked = newState;
+            card.classList.toggle("checked", newState);
+
+            socket.emit("toogle", { id, checked: newState });
+          });
+
+          bucket.set(id, card);
+          fragment.appendChild(card);
+        });
+
+        grid.appendChild(fragment);
+      }
+
+      async function loadData() {
+        if (isLoading || !hasMore) return;
+
+        isLoading = true;
+
+        const res = await fetch(`/state?page=${page}&limit=${limit}`);
+        const data = await res.json();
+
+        render(data.state);
+
+        // pagination control
+        if (page >= data.totalPages) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+
+        isLoading = false;
+      }
+
+    
+      function handleScroll() {
+        const container = document.querySelector(".container");
+
+        if (
+          container.scrollTop + container.clientHeight >=
+          container.scrollHeight - 100
+        ) {
+          loadData();
+        }
+      }
+
+ 
+      window.addEventListener("DOMContentLoaded", async () => {
+        await loadData();
+
+        const container = document.querySelector(".container");
+        container.addEventListener("scroll", handleScroll);
+
+        // socket listener
+        socket.on("onToggle", (data) => {
+          const card = bucket.get(data.id);
+          if (!card) return;
+
+          const input = card.querySelector("input");
+
+          input.checked = data.checked;
+          card.classList.toggle("checked", data.checked);
+        });
+
+        socket.on("user:join", (data) => {
+          const container = document.getElementById("toastContainer");
+
+          const toast = document.createElement("div");
+          toast.className = `toast success`;
+          toast.innerText = `joined 😉 ${data}`;
+
+          container.appendChild(toast);
+
+          setTimeout(() => {
+            toast.remove();
+          }, 3000);
+        });
+      });
+    </script>
+  </body>
+</html>
